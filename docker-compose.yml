@@ -27,7 +27,7 @@ services:
       PUID: 0
       PGID: 0
     ports:
-      - "8181:8181"
+      - "9055:8181"
   plexrequests:
     image: linuxserver/plexrequests
     container_name: plexrequests
@@ -39,7 +39,7 @@ services:
       PUID: 0
       PGID: 0
     ports:
-      - "3000:3000"
+      - "9051:3000"
   sabnzdb:
     image: linuxserver/sabnzbd
     container_name: sabnzbd
@@ -52,14 +52,13 @@ services:
       PUID: 0
       PGID: 0
     ports:
-      - "8081:8080"
-      - "9090:9090"
+      - "9052:8080"
   sonarr:
     image: linuxserver/sonarr
     container_name: sonarr
     restart: always
     ports:
-      - "8989:8989"
+      - "9053:8989"
     environment:
       PUID: 0
       PGID: 0
@@ -74,7 +73,7 @@ services:
     container_name: radarr
     restart: always
     ports:
-      - "7878:7878"
+      - "9054:7878"
     environment:
       PUID: 0
       PGID: 0
@@ -88,7 +87,7 @@ services:
     container_name: muximux
     restart: always
     ports:
-      - "8082:80"
+      - "9050:80"
     volumes:
       - "/mnt/data/docker/muximux/config:/config"
       - "/etc/localtime:/etc/localtime:ro"
@@ -108,7 +107,7 @@ services:
     container_name: ha
     restart: always
     ports:
-      - "8123:8123"
+      - "9056:8123"
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
       - "/mnt/data/docker/ha/config:/config"
@@ -119,7 +118,7 @@ services:
     container_name: portainer
     restart: always
     ports:
-      - "9101:9000"
+      - "9057:9000"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "/mnt/data/docker/portainer:/data"
