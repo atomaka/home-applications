@@ -1,6 +1,21 @@
 version: '2'
 
 services:
+  unifi:
+    image: linuxserver/unifi
+    container_name: unifi
+    restart: always
+    environment:
+      PUID: 0
+      PGID: 0
+    volumes:
+      - "/mnt/data/docker/unifi/config:/config"
+    ports:
+     - "9058:8080"
+     - "8081:8081"
+     - "8443:8443"
+     - "8843:8843"
+     - "8880:8880"
   plex:
     image: linuxserver/plex
     container_name: plex

@@ -7,3 +7,4 @@ Ports:
 * plexpy: 9055
 * ha: 9056
 * portainer: 9057
+* unifi: 9058, 8081, 8443, 8843, 8880
