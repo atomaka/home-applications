@@ -96,6 +96,7 @@ services:
       - "/mnt/data/docker/radarr/config:/config"
       - "/mnt/data/downloads:/data"
       - "/mnt/media/movies/:/media"
+      - "/mnt/media/movies/:/movies"
       - "/etc/localtime:/etc/localtime:ro"
   muximux:
     image: linuxserver/muximux
