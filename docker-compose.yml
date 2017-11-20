@@ -127,6 +127,8 @@ services:
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
       - "/mnt/data/docker/ha/config:/config"
+    devices:
+      - '/dev/zwave:/dev/zwave:rwm'
     links:
       - mqtt
   portainer:
