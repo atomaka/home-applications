@@ -244,6 +244,16 @@ services:
       - 8080:8080
     links:
       - mqtt
+  dasher:
+    image: clemenstyp/dasher-docker:latest
+    container_name: dasher
+    restart: always
+    environment:
+      PUID: 0
+      PGID: 0
+    volumes:
+      - "/mnt/data/docker/dasher/config:/root/dasher/config"
+    network_mode: host
 
 networks:
   proxy:
