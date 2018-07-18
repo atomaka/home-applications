@@ -183,6 +183,8 @@ services:
       - proxy
   ha:
     image: homeassistant/home-assistant:latest
+    depends_on:
+      - mqtt
     container_name: ha
     restart: always
     network_mode: host
@@ -212,6 +214,8 @@ services:
     image: acockburn/appdaemon:latest
     container_name: hadashboard
     restart: always
+    depends_on:
+      - ha
     ports:
       - 5050:5050
     environment:
@@ -247,6 +251,8 @@ services:
   dasher:
     image: clemenstyp/dasher-docker:latest
     container_name: dasher
+    depends_on:
+      - mqtt
     restart: always
     environment:
       PUID: 0
