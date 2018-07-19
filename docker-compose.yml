@@ -155,6 +155,15 @@ services:
     volumes:
       - "/mnt/data/docker/muximux/config:/config"
       - "/etc/localtime:/etc/localtime:ro"
+  organizr:
+    image: lsiocommunity/organizr
+    container_name: organizr
+    restart: always
+    ports:
+      - "9040:80"
+    volumes:
+      - "/mnt/data/docker/organizr/config:/config"
+      - "/etc/localtime:/etc/localtime:ro"
   duckdns:
     image: linuxserver/duckdns
     container_name: duckdns
