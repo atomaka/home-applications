@@ -49,16 +49,17 @@ services:
     container_name: unifi
     restart: always
     environment:
-      PUID: 0
-      PGID: 0
+      PUID: 1000
+      PGID: 1000
     volumes:
       - "/mnt/data/docker/unifi/config:/config"
     ports:
-     - "9058:8080"
+     - "8080:8080"
      - "8081:8081"
      - "8443:8443"
      - "8843:8843"
      - "8880:8880"
+     - "6789:6789"
      - "3478:3478/udp"
      - "10001:10001/udp"
   plex:
@@ -68,8 +69,8 @@ services:
     restart: always
     environment:
       VERSION: latest
-      PUID: 0
-      PGID: 0
+      PUID: 1000
+      PGID: 1000
     volumes:
       - "/mnt/data/docker/plex/config:/config"
       - "/mnt/media/series:/data/tvshows"
@@ -84,38 +85,10 @@ services:
       - "/mnt/data/docker/plex/config/Library/Application\ Support/Plex\ Media\ Server/Logs:/logs:ro"
       - "/etc/localtime:/etc/localtime:ro"
     environment:
-      PUID: 0
-      PGID: 0
+      PUID: 1000
+      PGID: 1000
     ports:
       - "9055:8181"
-  plexrequests:
-    image: linuxserver/plexrequests
-    container_name: plexrequests
-    restart: always
-    volumes:
-      - "/mnt/data/docker/plexrequests/config:/config"
-      - "/etc/localtime:/etc/localtime:ro"
-    environment:
-      PUID: 0
-      PGID: 0
-      VIRTUAL_HOST: plex-requests.atomaka.com
-      LETSENCRYPT_HOST: plex-requests.atomaka.com
-      LETSENCRYPT_EMAIL: me@atomaka.com
-    networks:
-      - proxy
-  sabnzbd:
-    image: linuxserver/sabnzbd
-    container_name: sabnzbd
-    restart: always
-    volumes:
-      - "/mnt/data/docker/sabnzbd/config:/config"
-      - "/mnt/data/downloads:/data"
-      - "/etc/localtime:/etc/localtime:ro"
-    environment:
-      PUID: 0
-      PGID: 0
-    ports:
-      - "9052:8080"
   sonarr:
     image: linuxserver/sonarr
     container_name: sonarr
@@ -123,8 +96,8 @@ services:
     ports:
       - "9053:8989"
     environment:
-      PUID: 0
-      PGID: 0
+      PUID: 1000
+      PGID: 1000
     volumes:
       - "/mnt/data/docker/sonarr/config:/config"
       - "/mnt/data/downloads:/data"
@@ -138,14 +111,29 @@ services:
     ports:
       - "9054:7878"
     environment:
-      PUID: 0
-      PGID: 0
+      PUID: 1000
+      PGID: 1000
     volumes:
       - "/mnt/data/docker/radarr/config:/config"
       - "/mnt/data/downloads:/data"
+      - "/mnt/data/downloads:/downloads"
       - "/mnt/media/movies/:/media"
       - "/mnt/media/movies/:/movies"
       - "/etc/localtime:/etc/localtime:ro"
+  readarr:
+    image: hotio/readarr:unstable-7bcd923
+    container_name: readarr
+    restart: always
+    ports:
+    - 9060:8787
+    environment:
+      PUID: 1000
+      PGID: 1000
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/mnt/data/docker/readarr/config:/config"
+      - "/mnt/media/books/:/books"
+      - "/mnt/data/downloads/complete/book:/downloads"
   muximux:
     image: linuxserver/muximux
     container_name: muximux
@@ -169,8 +157,8 @@ services:
     container_name: duckdns
     restart: always
     environment:
-      PUID: 0
-      PGID: 0
+      PUID: 1000
+      PGID: 1000
     env_file:
       - duckdns.env
     volumes:
@@ -204,34 +192,6 @@ services:
       - "/mnt/data/docker/ha/config:/config"
     devices:
       - '/dev/zwave:/dev/zwave:rwm'
-  hadashboardproxy:
-    image: instal/nginx-proxy-pass-dockerize
-    container_name: hadashboardproxy
-    restart: always
-    volumes:
-      - /mnt/data/docker/hadashboardproxy/nginx.template.conf:/app/nginx.template.conf:ro
-    environment:
-      NGINX_UPSTREAM_SERVER: 192.168.1.20:5050
-      NGINX_UPSTREAM_KEEPALIVE: 0
-      NGINX_SERVER_PORT: 80
-      VIRTUAL_HOST: dashboard.atomaka.com
-      LETSENCRYPT_HOST: dashboard.atomaka.com
-      LETSENCRYPT_EMAIL: me@atomaka.com
-    networks:
-      - proxy
-  hadashboard:
-    image: acockburn/appdaemon:latest
-    container_name: hadashboard
-    restart: always
-    depends_on:
-      - ha
-    ports:
-      - 5050:5050
-    environment:
-      PUID: 0
-      PGID: 0
-    volumes:
-      - "/mnt/data/docker/ha/config/dashboards:/conf"
   portainer:
     image: portainer/portainer
     container_name: portainer
@@ -242,33 +202,44 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "/mnt/data/docker/portainer:/data"
   mqtt:
-    image: matteocollina/mosca
+    image: eclipse-mosquitto
     container_name: mqtt
     restart: always
     ports:
       - 1883:1883
-  mqttbridge:
-    image: stjohnjohnson/smartthings-mqtt-bridge
-    container_name: mqttbridge
+
+  sabnzbd:
+    image: linuxserver/sabnzbd
+    container_name: sabnzbd
     restart: always
     volumes:
-      - "/mnt/data/docker/mqttbridge/config:/config"
-    ports:
-      - 8080:8080
-    links:
-      - mqtt
-  dasher:
-    image: clemenstyp/dasher-docker:latest
-    container_name: dasher
-    depends_on:
-      - mqtt
-    restart: always
+      - "/mnt/data/docker/sabnzbd/config:/config"
+      - "/mnt/data/downloads:/data"
+      - "/etc/localtime:/etc/localtime:ro"
     environment:
-      PUID: 0
-      PGID: 0
+      PUID: 1000
+      PGID: 1000
+    ports:
+      - "9052:8080"
+
+  gitea:
+    image: gitea/gitea:1.8.3
     volumes:
-      - "/mnt/data/docker/dasher/config:/root/dasher/config"
-    network_mode: host
+    - /mnt/data/docker/gitea/data:/data
+    environment:
+    - USER_UID=1000
+    - USER_GID=1000
+    - DISABLE_REGISTRATION=true
+    ports:
+    - "9061:3000"
+    - "9062:22"
+  irc:
+    image: thelounge/thelounge:latest
+    container_name: thelounge
+    volumes:
+    - /mnt/data/docker/thelounge/config:/var/opt/thelounge
+    ports:
+    - 9063:9000
 
 networks:
   proxy:
