@@ -8,3 +8,8 @@ Ports:
 * ha: 9056
 * portainer: 9057
 * unifi: 9058, 8081, 8443, 8843, 8880
+
+# Traefik Proxy into HA
+
+* Host network mode is issue.  This works with correct trusted proxy in HA
+  config but is likely to break on a fresh install.

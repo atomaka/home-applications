@@ -1,49 +1,165 @@
-version: '2'
+version: '3'
 
 services:
-  nginx:
-    image: nginx:alpine
-    container_name: nginx
+  traefik:
+    image: traefik:v2.3.1
+    container_name: traefik
+    restart: unless-stopped
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - /mnt/data/docker/traefik/tls:/tls
+    environment:
+      PUID: 1000
+      PGID: 1000
+    env_file:
+    - traefik.env
+    ports:
+    - 443:443
+    command:
+    - --api
+    - --providers.docker=true
+    - --providers.docker.exposedbydefault=false
+    - --entrypoints.https.Address=:443
+    - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+    - --certificatesresolvers.letsencrypt.acme.email=${EMAIL}
+    - --certificatesresolvers.letsencrypt.acme.storage=/tls/letsencrypt.json
+    - --certificatesresolvers.ledns.acme.dnschallenge=true
+    - --certificatesresolvers.ledns.acme.dnschallenge.provider=cloudflare
+    - --certificatesresolvers.ledns.acme.email=${EMAIL}
+    - --certificatesresolvers.ledns.acme.storage=/tls/ledns.json
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.traefik.rule: Host(`traefik.${DOMAIN}`)
+      traefik.http.routers.traefik.entrypoints: https
+      traefik.http.routers.traefik.tls.certresolver: ledns
+      traefik.http.routers.traefik.service: api@internal
+      traefik.http.routers.traefik.middlewares: traefik-ips,traefik-auth
+      traefik.http.middlewares.traefik-ips.ipwhitelist.sourcerange: 127.0.0.1/32,172.16.0.0/12,192.168.1.0/24
+      traefik.http.middlewares.traefik-auth.basicauth.users: ${USERNAME}:${PASSWORD}
+
+  ha:
+    image: homeassistant/home-assistant:latest
+    depends_on:
+      - mqtt
+    container_name: ha
+    restart: unless-stopped
+    ports:
+    - 8123:8123
+    labels:
+    - traefik.enable=true
+    - traefik.backend=ha
+    - traefik.http.routers.ha.rule=Host(`ha.atomaka.com`)
+    - traefik.http.services.ha.loadbalancer.server.url=http://${SERVER_IP}:8123
+    - traefik.http.services.ha.loadbalancer.server.port=8123
+    - traefik.http.routers.ha.tls.certresolver=letsencrypt
+    - traefik.port=8123
+    volumes:
+    - /etc/localtime:/etc/localtime:ro
+    - /mnt/data/docker/ha/config:/config
+    devices:
+    - /dev/zwave:/dev/zwave:rwm
+  gitea:
+    container_name: gitea
+    image: gitea/gitea:1.8.3
+    volumes:
+    - /mnt/data/docker/gitea/data:/data
+    environment:
+    - USER_UID=1000
+    - USER_GID=1000
+    - DISABLE_REGISTRATION=true
+    ports:
+    - 3000
+    - "9062:22"
+    labels:
+    - traefik.enable=true
+    - traefik.backend=git
+    - traefik.http.routers.git.rule=Host(`git.${DOMAIN}`)
+    - traefik.http.routers.git.tls.certresolver=letsencrypt
+    - traefik.http.services.git.loadbalancer.server.port=3000
+
+  sonarr:
+    image: linuxserver/sonarr
+    container_name: sonarr
     restart: always
     ports:
-      - 443:443
-      - 80:80
-    volumes:
-      - /etc/nginx/conf.d
-      - /etc/nginx/vhost.d
-      - /usr/share/nginx/html
-      - /mnt/data/docker/nginx/htpasswd:/etc/nginx/htpasswd:ro
-      - /mnt/data/docker/nginx/certificates:/etc/nginx/certs:ro
-    networks:
-      - proxy
-  nginx-gen:
-    image: jwilder/docker-gen
-    container_name: nginx-gen
-    restart: always
-    depends_on:
-      - nginx
-    entrypoint: /usr/local/bin/docker-gen -notify-sighup nginx -watch -wait 5s:30s /etc/docker-gen/templates/nginx.tmpl /etc/nginx/conf.d/default.conf
-    volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-      - /mnt/data/docker/nginx/templates/nginx.tmpl:/etc/docker-gen/templates/nginx.tmpl:ro
-    volumes_from:
-      - nginx
-    networks:
-      - proxy
-  letsencrypt:
-    image: jrcs/letsencrypt-nginx-proxy-companion
-    container_name: letsencrypt
-    restart: always
-    depends_on:
-      - nginx
-      - nginx-gen
-    volumes_from:
-      - nginx
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /mnt/data/docker/nginx/certificates:/etc/nginx/certs:rw
+    - 8989
     environment:
-      NGINX_DOCKER_GEN_CONTAINER: nginx-gen
+      PUID: 1000
+      PGID: 1000
+    volumes:
+    - /mnt/data/docker/sonarr/config:/config
+    - /mnt/data/downloads:/data
+    - /mnt/data/downloads:/downloads
+    - /mnt/media/series/:/media
+    - /etc/localtime:/etc/localtime:ro
+    labels:
+    - traefik.enable=true
+    - traefik.backend=sonarr
+    - traefik.http.routers.sonarr.rule=Host(`sonarr.${DOMAIN}`)
+    - traefik.http.routers.sonarr.tls.certresolver=ledns
+    - traefik.http.routers.sonarr.middlewares=sonarr@docker
+    - traefik.http.middlewares.sonarr.ipwhitelist.sourcerange=127.0.0.1/32,172.16.0.0/12,192.168.1.0/24
+  radarr:
+    image: linuxserver/radarr
+    container_name: radarr
+    restart: always
+    ports:
+    - 7878
+    environment:
+      PUID: 1000
+      PGID: 1000
+    volumes:
+    - /mnt/data/docker/radarr/config:/config
+    - /mnt/data/downloads:/data
+    - /mnt/data/downloads:/downloads
+    - /mnt/media/movies/:/media
+    - /mnt/media/movies/:/movies
+    - /etc/localtime:/etc/localtime:ro
+    labels:
+    - traefik.enable=true
+    - traefik.backend=radarr
+    - traefik.http.routers.radarr.rule=Host(`radarr.${DOMAIN}`)
+    - traefik.http.routers.radarr.tls.certresolver=ledns
+    - traefik.http.routers.radarr.middlewares=radarr@docker
+    - traefik.http.middlewares.radarr.ipwhitelist.sourcerange=127.0.0.1/32,172.16.0.0/12,192.168.1.0/24
+  sabnzbd:
+    image: linuxserver/sabnzbd
+    container_name: sabnzbd
+    restart: always
+    volumes:
+    - /mnt/data/docker/sabnzbd/config:/config
+    - /mnt/data/downloads:/data
+    - /etc/localtime:/etc/localtime:ro
+    environment:
+      PUID: 1000
+      PGID: 1000
+    ports:
+      - 9052:8080
+    labels:
+    - traefik.enable=true
+    - traefik.backend=sabnzbd
+    - traefik.http.routers.sabnzbd.rule=Host(`sabnzbd.${DOMAIN}`)
+    - traefik.http.routers.sabnzbd.tls.certresolver=ledns
+    - traefik.http.routers.sabnzbd.middlewares=sabnzbd@docker
+    - traefik.http.middlewares.sabnzbd.ipwhitelist.sourcerange=127.0.0.1/32,172.16.0.0/12,192.168.1.0/24
+  organizr:
+    image: lsiocommunity/organizr
+    container_name: organizr
+    restart: always
+    ports:
+    - 80
+    volumes:
+    - /mnt/data/docker/organizr/config:/config
+    - /etc/localtime:/etc/localtime:ro
+    labels:
+    - traefik.enable=true
+    - traefik.backend=organizr
+    - traefik.http.routers.organizr.rule=Host(`organizr.${DOMAIN}`)
+    - traefik.http.routers.organizr.tls.certresolver=ledns
+    - traefik.http.routers.organizr.middlewares=organizr@docker
+    - traefik.http.middlewares.organizr.ipwhitelist.sourcerange=127.0.0.1/32,172.16.0.0/12,192.168.1.0/24
+
+
   unifi:
     image: linuxserver/unifi
     container_name: unifi
@@ -89,69 +205,7 @@ services:
       PGID: 1000
     ports:
       - "9055:8181"
-  sonarr:
-    image: linuxserver/sonarr
-    container_name: sonarr
-    restart: always
-    ports:
-      - "9053:8989"
-    environment:
-      PUID: 1000
-      PGID: 1000
-    volumes:
-      - "/mnt/data/docker/sonarr/config:/config"
-      - "/mnt/data/downloads:/data"
-      - "/mnt/data/downloads:/downloads"
-      - "/mnt/media/series/:/media"
-      - "/etc/localtime:/etc/localtime:ro"
-  radarr:
-    image: linuxserver/radarr
-    container_name: radarr
-    restart: always
-    ports:
-      - "9054:7878"
-    environment:
-      PUID: 1000
-      PGID: 1000
-    volumes:
-      - "/mnt/data/docker/radarr/config:/config"
-      - "/mnt/data/downloads:/data"
-      - "/mnt/data/downloads:/downloads"
-      - "/mnt/media/movies/:/media"
-      - "/mnt/media/movies/:/movies"
-      - "/etc/localtime:/etc/localtime:ro"
-  readarr:
-    image: hotio/readarr:unstable-7bcd923
-    container_name: readarr
-    restart: always
-    ports:
-    - 9060:8787
-    environment:
-      PUID: 1000
-      PGID: 1000
-    volumes:
-      - "/etc/localtime:/etc/localtime:ro"
-      - "/mnt/data/docker/readarr/config:/config"
-      - "/mnt/media/books/:/books"
-      - "/mnt/data/downloads/complete/book:/downloads"
-  muximux:
-    image: linuxserver/muximux
-    container_name: muximux
-    restart: always
-    ports:
-      - "9050:80"
-    volumes:
-      - "/mnt/data/docker/muximux/config:/config"
-      - "/etc/localtime:/etc/localtime:ro"
-  organizr:
-    image: lsiocommunity/organizr
-    container_name: organizr
-    restart: always
-    ports:
-      - "9040:80"
-    volumes:
-      - "/mnt/data/docker/organizr/config:/config"
-      - "/etc/localtime:/etc/localtime:ro"
+
   duckdns:
     image: linuxserver/duckdns
     container_name: duckdns
@@ -160,88 +214,12 @@ services:
       PUID: 1000
       PGID: 1000
     env_file:
-      - duckdns.env
+    - duckdns.env
     volumes:
-      - "/etc/localtime:/etc/localtime:ro"
-  haproxy:
-    image: instal/nginx-proxy-pass-dockerize
-    container_name: haproxy
-    restart: always
-    volumes:
-      - /mnt/data/docker/haproxy/nginx.template.conf:/app/nginx.template.conf:ro
-    environment:
-      NGINX_UPSTREAM_SERVER: 192.168.1.20:8123
-      NGINX_UPSTREAM_KEEPALIVE: 0
-      NGINX_SERVER_PORT: 80
-      VIRTUAL_HOST: ha.atomaka.com
-      LETSENCRYPT_HOST: ha.atomaka.com
-      LETSENCRYPT_EMAIL: me@atomaka.com
-    networks:
-      - proxy
-  ha:
-    image: homeassistant/home-assistant:latest
-    depends_on:
-      - mqtt
-    container_name: ha
-    restart: always
-    network_mode: host
-    ports:
-      - "8123:8123"
-    volumes:
-      - "/etc/localtime:/etc/localtime:ro"
-      - "/mnt/data/docker/ha/config:/config"
-    devices:
-      - '/dev/zwave:/dev/zwave:rwm'
-  portainer:
-    image: portainer/portainer
-    container_name: portainer
-    restart: always
-    ports:
-      - "9057:9000"
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock"
-      - "/mnt/data/docker/portainer:/data"
+    - /etc/localtime:/etc/localtime:ro
   mqtt:
     image: eclipse-mosquitto
     container_name: mqtt
     restart: always
     ports:
-      - 1883:1883
-
-  sabnzbd:
-    image: linuxserver/sabnzbd
-    container_name: sabnzbd
-    restart: always
-    volumes:
-      - "/mnt/data/docker/sabnzbd/config:/config"
-      - "/mnt/data/downloads:/data"
-      - "/etc/localtime:/etc/localtime:ro"
-    environment:
-      PUID: 1000
-      PGID: 1000
-    ports:
-      - "9052:8080"
-
-  gitea:
-    image: gitea/gitea:1.8.3
-    volumes:
-    - /mnt/data/docker/gitea/data:/data
-    environment:
-    - USER_UID=1000
-    - USER_GID=1000
-    - DISABLE_REGISTRATION=true
-    ports:
-    - "9061:3000"
-    - "9062:22"
-  irc:
-    image: thelounge/thelounge:latest
-    container_name: thelounge
-    volumes:
-    - /mnt/data/docker/thelounge/config:/var/opt/thelounge
-    ports:
-    - 9063:9000
-
-networks:
-  proxy:
-    external:
-      name: nginx-proxy
+    - 1883:1883
