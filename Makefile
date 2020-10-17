@@ -1,18 +1,11 @@
-deploy: validate files
-	scp ./*.env 192.168.1.20:/home/atomaka/docker
-	scp ./docker-compose.yml 192.168.1.20:/home/atomaka/docker
-	ssh 192.168.1.20 "cd /home/atomaka/docker && docker-compose up -d"
+include .env
+export
 
-files:
-	scp ./nginx.tmpl 192.168.1.20:/home/atomaka
-	ssh 192.168.1.20 "sudo mv /home/atomaka/nginx.tmpl /mnt/data/docker/nginx/templates/"
-	scp ./nginx.template.conf 192.168.1.20:/home/atomaka
-	ssh 192.168.1.20 "sudo mv /home/atomaka/nginx.template.conf /mnt/data/docker/haproxy/"
-	scp ./nginx.template.conf 192.168.1.20:/home/atomaka
-	ssh 192.168.1.20 "sudo mv /home/atomaka/nginx.template.conf /mnt/data/docker/hadashboardproxy/"
-
-network:
-	ssh 192.168.1.20 "docker network create nginx-proxy"
+deploy: validate
+	scp ./*.env $$SERVER_IP:/home/atomaka/docker
+	scp ./.env $$SERVER_IP:/home/atomaka/docker
+	scp ./docker-compose.yml $$SERVER_IP:/home/atomaka/docker
+	ssh $$SERVER_IP "cd /home/atomaka/docker && docker-compose up -d"
 
 validate:
 	docker-compose config > /dev/null
