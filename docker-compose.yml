@@ -76,6 +76,23 @@ services:
     - traefik.http.routers.git.rule=Host(`git.${DOMAIN}`)
     - traefik.http.routers.git.tls.certresolver=letsencrypt
     - traefik.http.services.git.loadbalancer.server.port=3000
+  wiki:
+    container_name: wikijs
+    image: linuxserver/wikijs
+    volumes:
+    - /mnt/data/docker/wikijs/data:/data
+    - /mnt/data/docker/wikijs/config:/config
+    - /etc/localtime:/etc/localtime:ro
+    environment:
+      PUID: 1000
+      PGID: 1000
+      DB_TYPE: sqlite
+      DB_FILEPATH: /data/database.db
+    labels:
+    - traefik.enable=true
+    - traefik.backend=wiki
+    - traefik.http.routers.wiki.rule=Host(`wiki.${DOMAIN}`)
+    - traefik.http.routers.wiki.tls.certresolver=letsencrypt
 
   sonarr:
     image: linuxserver/sonarr
