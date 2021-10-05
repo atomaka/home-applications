@@ -56,8 +56,6 @@ services:
     volumes:
     - /etc/localtime:/etc/localtime:ro
     - /mnt/data/docker/ha/config:/config
-    devices:
-    - /dev/zwave:/dev/zwave:rwm
   gitea:
     container_name: gitea
     image: gitea/gitea:1.8.3
@@ -241,3 +239,20 @@ services:
     ports:
     - 1883:1883
     command: mosquitto -c /mosquitto-no-auth.conf
+  zwavejs2mqtt:
+    container_name: zwavejs2mqtt
+    image: zwavejs/zwavejs2mqtt:latest
+    restart: always
+    tty: true
+    stop_signal: SIGINT
+    env_file:
+    - zwavejs2mqtt.env
+    environment:
+    - TZ=America/New_York
+    devices:
+    - /dev/zwave:/dev/zwave
+    volumes:
+    - /mnt/data/docker/zwavejs2mqtt/store:/usr/src/app/store
+    ports:
+    - '9056:8091'
+    - '9057:3000'
